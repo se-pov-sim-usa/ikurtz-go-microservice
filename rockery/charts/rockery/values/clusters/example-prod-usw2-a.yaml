@@ -1,0 +1,7 @@
+cluster:
+  name: example-prod-usw2-a
+  group: wave-1
+
+# Example of a legitimate per-cluster difference (e.g. a bigger region):
+autoscaling:
+  maxReplicas: 20

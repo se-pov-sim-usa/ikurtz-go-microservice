@@ -1,0 +1,8 @@
+apiVersion: v2
+name: rockery
+description: Rockery, the Pet Rock Adoption Agency microservice
+type: application
+# chart version: bump when the chart's templates change
+version: 0.2.0
+# appVersion is a default for labels only; deploys set the real value from the image tag (see _helpers.tpl)
+appVersion: "0.0.0"

@@ -1,0 +1,42 @@
+{{- if .Values.tests.enabled }}
+# `helm test <release> -n <ns>` : proves the release is serving AND is running the tag we think it is.
+apiVersion: v1
+kind: Pod
+metadata:
+  name: {{ include "rockery.fullname" . }}-test
+  labels:
+    {{- include "rockery.labels" . | nindent 4 }}
+  annotations:
+    "helm.sh/hook": test
+    "helm.sh/hook-delete-policy": before-hook-creation,hook-succeeded
+spec:
+  restartPolicy: Never
+  automountServiceAccountToken: false
+  securityContext:
+    runAsNonRoot: true
+    runAsUser: 100
+    seccompProfile:
+      type: RuntimeDefault
+  containers:
+    - name: curl
+      image: {{ .Values.tests.image | quote }}
+      securityContext:
+        allowPrivilegeEscalation: false
+        readOnlyRootFilesystem: true
+        capabilities:
+          drop: ["ALL"]
+      command: ["/bin/sh", "-ec"]
+      args:
+        - |
+          BASE="http://{{ include "rockery.fullname" . }}:{{ .Values.service.port }}"
+          curl -fsS "$BASE/healthz"
+          curl -fsS "$BASE/readyz"
+          curl -fsS "$BASE/rocks" >/dev/null
+          # The service must report the version we deployed and the environment we targeted.
+          V="$(curl -fsS "$BASE/version")"
+          echo "$V"
+          {{- if not (contains "@" (include "rockery.image" .)) }}
+          echo "$V" | grep -q '"version":"{{ include "rockery.imageTag" . }}"'
+          {{- end }}
+          echo "$V" | grep -q '"environment":"{{ .Values.environment }}"'
+{{- end }}

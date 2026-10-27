@@ -1,0 +1,7 @@
+.git
+.github
+charts
+infra
+scripts
+*.md
+Makefile

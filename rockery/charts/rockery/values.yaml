@@ -1,0 +1,99 @@
+# Base values: safe defaults that work in any environment.
+# Per-environment overrides live in values/<env>.yaml; per-cluster overrides in values/clusters/<cluster>.yaml.
+# Layering order (later wins):  values.yaml -> values/<env>.yaml -> values/clusters/<cluster>.yaml -> --set image.tag=...
+
+# Which tier this release is: dev | preprod | prod. Shown in /version and on every pod as a label.
+environment: dev
+
+# Where this release runs. Set per cluster (values/clusters/*.yaml or --set cluster.name=...).
+# `group` is the rollout wave a cluster belongs to, so phased rollouts can target one group at a time.
+cluster:
+  name: ""
+  group: ""
+
+image:
+  # The only thing CI hands to CD is an immutable image. Provide it ONE of two ways (never committed):
+  #
+  # 1) One full reference. This is what a Harness service passes: reference: <+artifacts.primary.image>
+  #    e.g. 123456789012.dkr.ecr.us-west-2.amazonaws.com/rockery:3f9c2ab   (':latest' is rejected)
+  reference: ""
+  #
+  # 2) Two parts (used by `make deploy`):
+  #    repository: <account>.dkr.ecr.<region>.amazonaws.com/rockery
+  #    tag: 3f9c2ab | 1.4.2 | v1.4.2
+  repository: ""
+  tag: ""
+  pullPolicy: IfNotPresent
+
+replicaCount: 3
+
+service:
+  type: ClusterIP
+  port: 80
+
+ingress:
+  enabled: false
+  className: alb
+  annotations:
+    alb.ingress.kubernetes.io/scheme: internet-facing
+    alb.ingress.kubernetes.io/target-type: ip
+    alb.ingress.kubernetes.io/healthcheck-path: /readyz
+    alb.ingress.kubernetes.io/listen-ports: '[{"HTTP":80}]'
+  # For HTTPS add: alb.ingress.kubernetes.io/certificate-arn, listen-ports with 443, ssl-redirect
+  host: ""
+  path: /
+
+resources:
+  requests:
+    cpu: 50m
+    memory: 32Mi
+  limits:
+    memory: 128Mi
+
+autoscaling:
+  enabled: true
+  minReplicas: 3
+  maxReplicas: 12
+  targetCPUUtilizationPercentage: 70
+
+pdb:
+  enabled: true
+  minAvailable: 2
+
+# Spread replicas across AZs
+topologySpread:
+  enabled: true
+  maxSkew: 1
+  whenUnsatisfiable: ScheduleAnyway
+
+serviceAccount:
+  create: true
+  name: ""
+  # IRSA / Pod Identity: eks.amazonaws.com/role-arn: arn:aws:iam::<ACCOUNT_ID>:role/rockery
+  annotations: {}
+
+# Must exceed the app's 5s readiness drain + 20s shutdown budget.
+terminationGracePeriodSeconds: 40
+
+# Extra labels/annotations on pods. Pipelines use these to stamp who/what/when onto a release,
+# e.g. --set-string deploy.runId=$RUN_ID  (see `deploy` below), for an auditable trail.
+podAnnotations: {}
+podLabels: {}
+
+deploy:
+  # Free-form audit stamps written as pod annotations. Filled in by the pipeline, empty locally.
+  runId: ""
+  triggeredBy: ""
+  gitSha: ""
+
+env: {}
+nodeSelector: {}
+tolerations: []
+affinity: {}
+
+# Helm test (`helm test <release>`) runs a short-lived pod that curls the service.
+# Off by default so a pipeline that renders the chart with `helm template` never applies the test pod
+# as an ordinary Pod. `make deploy` turns it on (--set tests.enabled=true).
+tests:
+  enabled: false
+  image: curlimages/curl:8.11.1

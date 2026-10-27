@@ -1,0 +1,38 @@
+# Creates a small, sensible EKS cluster.
+#   eksctl create cluster -f infra/eksctl-cluster.yaml
+# Cost heads-up: EKS control plane (~$0.10/hr) + 2x t3.medium + NAT gateway.
+# Tear down with `make cluster-delete` when you're done experimenting.
+apiVersion: eksctl.io/v1alpha5
+kind: ClusterConfig
+
+metadata:
+  name: rockery-demo
+  region: us-west-2
+  version: "1.33"
+
+iam:
+  withOIDC: true   # needed for IRSA and the AWS Load Balancer Controller
+
+vpc:
+  nat:
+    gateway: Single   # cheaper than HighlyAvailable; fine for a demo
+
+addons:
+  - name: vpc-cni
+  - name: coredns
+  - name: kube-proxy
+  - name: metrics-server   # required by the HPA
+
+managedNodeGroups:
+  - name: general
+    instanceType: t3.medium
+    minSize: 2
+    desiredCapacity: 2
+    maxSize: 4
+    volumeSize: 20
+    privateNetworking: true
+    labels: { role: general }
+
+cloudWatch:
+  clusterLogging:
+    enableTypes: ["api", "audit", "authenticator"]

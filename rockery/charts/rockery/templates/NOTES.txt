@@ -1,0 +1,14 @@
+Rockery {{ include "rockery.imageTag" . }} deployed to environment "{{ .Values.environment }}"{{ with .Values.cluster.name }} on cluster "{{ . }}"{{ end }}.
+
+Check it:
+  kubectl -n {{ .Release.Namespace }} get pods -L app.kubernetes.io/version
+  helm -n {{ .Release.Namespace }} test {{ .Release.Name }}
+  helm -n {{ .Release.Namespace }} history {{ .Release.Name }}
+{{- if .Values.ingress.enabled }}
+
+Public URL (ALB takes a few minutes the first time):
+  kubectl -n {{ .Release.Namespace }} get ingress {{ include "rockery.fullname" . }} -o jsonpath='http://{.status.loadBalancer.ingress[0].hostname}{"\n"}'
+{{- end }}
+
+Roll back:
+  helm -n {{ .Release.Namespace }} rollback {{ .Release.Name }}

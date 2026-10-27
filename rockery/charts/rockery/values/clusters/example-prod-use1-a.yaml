@@ -1,0 +1,10 @@
+# One file per cluster. Copy this for each production cluster (the model scales to dozens):
+# only things that genuinely differ per cluster belong here, usually just identity and rollout group.
+#
+#   make deploy ENV=prod CLUSTER=example-prod-use1-a
+#
+# `group` marks the rollout wave. A pipeline can deploy every cluster in group "canary", wait for
+# approval/verification, then move on to "wave-1", "wave-2", and so on.
+cluster:
+  name: example-prod-use1-a
+  group: canary
